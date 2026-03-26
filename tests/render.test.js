@@ -881,7 +881,7 @@ test('renderSessionLine shows Bedrock label and hides usage for bedrock model id
   const line = renderSessionLine(ctx);
   assert.ok(line.includes('Sonnet'), 'should include model name');
   assert.ok(line.includes('Bedrock'), 'should include Bedrock label');
-  assert.ok(!line.includes('5h:'), 'should hide usage display');
+  assert.ok(!line.includes('5h'), 'should hide usage display');
 });
 
 test('renderSessionLine displays usage percentages (7d hidden when low)', () => {
@@ -895,8 +895,8 @@ test('renderSessionLine displays usage percentages (7d hidden when low)', () => 
     sevenDayResetAt: null,
   };
   const line = renderSessionLine(ctx);
-  assert.ok(line.includes('5h:'), 'should include 5h label');
-  assert.ok(!line.includes('7d:'), 'should NOT include 7d when below 80%');
+  assert.ok(line.includes('5h'), 'should include 5h label');
+  assert.ok(!line.includes('Weekly'), 'should NOT include 7d when below 80%');
   assert.ok(line.includes('6%'), 'should include 5h percentage');
 });
 
@@ -911,8 +911,8 @@ test('renderSessionLine shows 7d when approaching limit (>=80%)', () => {
     sevenDayResetAt: null,
   };
   const line = renderSessionLine(ctx);
-  assert.ok(line.includes('5h:'), 'should include 5h label');
-  assert.ok(line.includes('7d:'), 'should include 7d when >= 80%');
+  assert.ok(line.includes('5h'), 'should include 5h label');
+  assert.ok(line.includes('Weekly'), 'should include 7d when >= 80%');
   assert.ok(line.includes('85%'), 'should include 7d percentage');
 });
 
@@ -930,7 +930,7 @@ test('renderSessionLine shows 7d reset countdown in text-only mode', () => {
   };
 
   const line = stripAnsi(renderSessionLine(ctx));
-  assert.ok(line.includes('7d: 85%'), `should include 7d label and percentage: ${line}`);
+  assert.ok(line.includes('Weekly 85%'), `should include 7d label and percentage: ${line}`);
   assert.ok(line.includes('(1d 4h)'), `should include 7d reset countdown in text-only mode: ${line}`);
 });
 
@@ -946,7 +946,7 @@ test('renderSessionLine respects sevenDayThreshold override', () => {
   };
 
   const line = renderSessionLine(ctx);
-  assert.ok(line.includes('7d:'), 'should include 7d when threshold is 0');
+  assert.ok(line.includes('Weekly'), 'should include 7d when threshold is 0');
 });
 
 test('renderSessionLine shows weekly-only usage without a ghost 5h section', () => {
@@ -961,8 +961,8 @@ test('renderSessionLine shows weekly-only usage without a ghost 5h section', () 
   };
 
   const line = stripAnsi(renderSessionLine(ctx));
-  assert.ok(!line.includes('5h:'), `should not render a ghost 5h section: ${line}`);
-  assert.ok(line.includes('7d:'), `should render the weekly window when it is the only usage value: ${line}`);
+  assert.ok(!line.includes('5h'), `should not render a ghost 5h section: ${line}`);
+  assert.ok(line.includes('Weekly'), `should render the weekly window when it is the only usage value: ${line}`);
   assert.ok(line.includes('13%'), `should render the weekly percentage: ${line}`);
 });
 
@@ -977,7 +977,7 @@ test('renderSessionLine shows 5hr reset countdown', () => {
     sevenDayResetAt: null,
   };
   const line = renderSessionLine(ctx);
-  assert.ok(line.includes('5h:'), 'should include 5h label');
+  assert.ok(line.includes('5h'), 'should include 5h label');
   assert.ok(line.includes('2h'), 'should include reset countdown');
 });
 
@@ -1013,8 +1013,8 @@ test('renderUsageLine shows 7d reset countdown in text-only mode', () => {
   };
 
   const line = stripAnsi(renderUsageLine(ctx));
-  assert.ok(line.includes('5h: 45%'), `should include 5h text-only usage: ${line}`);
-  assert.ok(line.includes('7d: 85%'), `should include 7d text-only usage: ${line}`);
+  assert.ok(line.includes('5h 45%'), `should include 5h text-only usage: ${line}`);
+  assert.ok(line.includes('Weekly 85%'), `should include 7d text-only usage: ${line}`);
   assert.ok(line.includes('(resets in 1d 4h)'), `should include 7d reset countdown in text-only mode: ${line}`);
 });
 
@@ -1051,8 +1051,8 @@ test('renderUsageLine shows weekly-only usage without a ghost 5h section', () =>
 
   const line = stripAnsi(renderUsageLine(ctx));
   assert.ok(line.includes('Usage'), `should render usage line: ${line}`);
-  assert.ok(!line.includes('5h:'), `should not render a ghost 5h section: ${line}`);
-  assert.ok(line.includes('7d:'), `should render the weekly window when it is the only usage value: ${line}`);
+  assert.ok(!line.includes('5h'), `should not render a ghost 5h section: ${line}`);
+  assert.ok(line.includes('Weekly'), `should render the weekly window when it is the only usage value: ${line}`);
   assert.ok(line.includes('13%'), `should render the weekly percentage: ${line}`);
   assert.ok(!line.includes('|'), `should not render a separator for a missing 5h window: ${line}`);
 });
@@ -1100,7 +1100,7 @@ test('renderSessionLine displays -- for null usage values', () => {
     sevenDayResetAt: null,
   };
   const line = renderSessionLine(ctx);
-  assert.ok(line.includes('5h:'), 'should include 5h label');
+  assert.ok(line.includes('5h'), 'should include 5h label');
   assert.ok(line.includes('--'), 'should show -- for null values');
 });
 
@@ -1108,8 +1108,8 @@ test('renderSessionLine omits usage when usageData is null', () => {
   const ctx = baseContext();
   ctx.usageData = null;
   const line = renderSessionLine(ctx);
-  assert.ok(!line.includes('5h:'), 'should not include 5h label');
-  assert.ok(!line.includes('7d:'), 'should not include 7d label');
+  assert.ok(!line.includes('5h'), 'should not include 5h label');
+  assert.ok(!line.includes('Weekly'), 'should not include 7d label');
 });
 
 test('renderSessionLine uses custom critical colors for limit-reached usage state', () => {
@@ -1171,7 +1171,7 @@ test('renderSessionLine hides usage when showUsage config is false (hybrid toggl
   // Even with usageData present, setting showUsage to false should hide it
   ctx.config.display.showUsage = false;
   const line = renderSessionLine(ctx);
-  assert.ok(!line.includes('5h:'), 'should not show usage when showUsage is false');
+  assert.ok(!line.includes('5h'), 'should not show usage when showUsage is false');
   assert.ok(!line.includes('Pro'), 'should not show plan name when showUsage is false');
 });
 
