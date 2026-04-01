@@ -1,11 +1,33 @@
-import type { RenderContext } from '../types.js';
-import { isLimitReached } from '../types.js';
-import { getContextPercent, getBufferedPercent, getModelName, getProviderLabel, getTotalTokens } from '../stdin.js';
-import { getOutputSpeed } from '../speed-tracker.js';
-import { coloredBar, critical, git as gitColor, gitBranch as gitBranchColor, label, model as modelColor, project as projectColor, red, getContextColor, getQuotaColor, quotaBar, custom as customColor, RESET } from './colors.js';
-import { getAdaptiveBarWidth } from '../utils/terminal.js';
+import type { RenderContext } from "../types.js";
+import { isLimitReached } from "../types.js";
+import {
+  getContextPercent,
+  getBufferedPercent,
+  getModelName,
+  getProviderLabel,
+  getTotalTokens,
+} from "../stdin.js";
+import { getOutputSpeed } from "../speed-tracker.js";
+import {
+  coloredBar,
+  critical,
+  git as gitColor,
+  gitBranch as gitBranchColor,
+  label,
+  model as modelColor,
+  project as projectColor,
+  red,
+  getContextColor,
+  getQuotaColor,
+  quotaBar,
+  custom as customColor,
+  RESET,
+} from "./colors.js";
+import { getAdaptiveBarWidth } from "../utils/terminal.js";
+import { t } from "../i18n/index.js";
 
-const DEBUG = process.env.DEBUG?.includes('claude-hud') || process.env.DEBUG === '*';
+const DEBUG =
+  process.env.DEBUG?.includes("claude-hud") || process.env.DEBUG === "*";
 
 /**
  * Renders the full session line (model + context bar + project + git + counts + usage + duration).
@@ -16,11 +38,13 @@ export function renderSessionLine(ctx: RenderContext): string {
 
   const rawPercent = getContextPercent(ctx.stdin);
   const bufferedPercent = getBufferedPercent(ctx.stdin);
-  const autocompactMode = ctx.config?.display?.autocompactBuffer ?? 'enabled';
-  const percent = autocompactMode === 'disabled' ? rawPercent : bufferedPercent;
+  const autocompactMode = ctx.config?.display?.autocompactBuffer ?? "enabled";
+  const percent = autocompactMode === "disabled" ? rawPercent : bufferedPercent;
 
-  if (DEBUG && autocompactMode === 'disabled') {
-    console.error(`[claude-hud:context] autocompactBuffer=disabled, showing raw ${rawPercent}% (buffered would be ${bufferedPercent}%)`);
+  if (DEBUG && autocompactMode === "disabled") {
+    console.error(
+      `[claude-hud:context] autocompactBuffer=disabled, showing raw ${rawPercent}% (buffered would be ${bufferedPercent}%)`,
+    );
   }
 
   const colors = ctx.config?.colors;
@@ -29,7 +53,7 @@ export function renderSessionLine(ctx: RenderContext): string {
 
   const parts: string[] = [];
   const display = ctx.config?.display;
-  const contextValueMode = display?.contextValue ?? 'percent';
+  const contextValueMode = display?.contextValue ?? "percent";
   const contextValue = formatContextValue(ctx, percent, contextValueMode);
   const contextValueDisplay = `${getContextColor(percent, colors)}${contextValue}${RESET}`;
 
@@ -37,13 +61,18 @@ export function renderSessionLine(ctx: RenderContext): string {
   const providerLabel = getProviderLabel(ctx.stdin);
   const showUsage = display?.showUsage !== false;
   const hasApiKey = !!process.env.ANTHROPIC_API_KEY;
-  const modelQualifier = providerLabel ?? (showUsage && hasApiKey ? red('API') : undefined);
+  const modelQualifier =
+    providerLabel ?? (showUsage && hasApiKey ? red("API") : undefined);
   const modelDisplay = modelQualifier ? `${model} | ${modelQualifier}` : model;
 
   if (display?.showModel !== false && display?.showContextBar !== false) {
-    parts.push(`${modelColor(`[${modelDisplay}]`, colors)} ${bar} ${contextValueDisplay}`);
+    parts.push(
+      `${modelColor(`[${modelDisplay}]`, colors)} ${bar} ${contextValueDisplay}`,
+    );
   } else if (display?.showModel !== false) {
-    parts.push(`${modelColor(`[${modelDisplay}]`, colors)} ${contextValueDisplay}`);
+    parts.push(
+      `${modelColor(`[${modelDisplay}]`, colors)} ${contextValueDisplay}`,
+    );
   } else if (display?.showContextBar !== false) {
     parts.push(`${bar} ${contextValueDisplay}`);
   } else {
@@ -58,11 +87,12 @@ export function renderSessionLine(ctx: RenderContext): string {
     const pathLevels = ctx.config?.pathLevels ?? 1;
     // Always join with forward slash for consistent display
     // Handle root path (/) which results in empty segments
-    const projectPath = segments.length > 0 ? segments.slice(-pathLevels).join('/') : '/';
+    const projectPath =
+      segments.length > 0 ? segments.slice(-pathLevels).join("/") : "/";
     projectPart = projectColor(projectPath, colors);
   }
 
-  let gitPart = '';
+  let gitPart = "";
   const gitConfig = ctx.config?.gitStatus;
   const showGit = gitConfig?.enabled ?? true;
 
@@ -71,7 +101,7 @@ export function renderSessionLine(ctx: RenderContext): string {
 
     // Show dirty indicator
     if ((gitConfig?.showDirty ?? true) && ctx.gitStatus.isDirty) {
-      gitParts.push('*');
+      gitParts.push("*");
     }
 
     // Show ahead/behind (with space separator for readability)
@@ -93,11 +123,11 @@ export function renderSessionLine(ctx: RenderContext): string {
       if (deleted > 0) statParts.push(`✘${deleted}`);
       if (untracked > 0) statParts.push(`?${untracked}`);
       if (statParts.length > 0) {
-        gitParts.push(` ${statParts.join(' ')}`);
+        gitParts.push(` ${statParts.join(" ")}`);
       }
     }
 
-    gitPart = `${gitColor('git:(', colors)}${gitBranchColor(gitParts.join(''), colors)}${gitColor(')', colors)}`;
+    gitPart = `${gitColor("git:(", colors)}${gitBranchColor(gitParts.join(""), colors)}${gitColor(")", colors)}`;
   }
 
   if (projectPart && gitPart) {
@@ -119,7 +149,8 @@ export function renderSessionLine(ctx: RenderContext): string {
 
   // Config counts (respects environmentThreshold)
   if (display?.showConfigCounts !== false) {
-    const totalCounts = ctx.claudeMdCount + ctx.rulesCount + ctx.mcpCount + ctx.hooksCount;
+    const totalCounts =
+      ctx.claudeMdCount + ctx.rulesCount + ctx.mcpCount + ctx.hooksCount;
     const envThreshold = display?.environmentThreshold ?? 0;
 
     if (totalCounts > 0 && totalCounts >= envThreshold) {
@@ -128,7 +159,7 @@ export function renderSessionLine(ctx: RenderContext): string {
       }
 
       if (ctx.rulesCount > 0) {
-        parts.push(label(`${ctx.rulesCount} rules`, colors));
+        parts.push(label(`${ctx.rulesCount} ${t("label.rules")}`, colors));
       }
 
       if (ctx.mcpCount > 0) {
@@ -136,7 +167,7 @@ export function renderSessionLine(ctx: RenderContext): string {
       }
 
       if (ctx.hooksCount > 0) {
-        parts.push(label(`${ctx.hooksCount} hooks`, colors));
+        parts.push(label(`${ctx.hooksCount} ${t("label.hooks")}`, colors));
       }
     }
   }
@@ -144,10 +175,16 @@ export function renderSessionLine(ctx: RenderContext): string {
   // Usage limits display (shown when enabled in config, respects usageThreshold)
   if (display?.showUsage !== false && ctx.usageData && !providerLabel) {
     if (isLimitReached(ctx.usageData)) {
-      const resetTime = ctx.usageData.fiveHour === 100
-        ? formatResetTime(ctx.usageData.fiveHourResetAt)
-        : formatResetTime(ctx.usageData.sevenDayResetAt);
-      parts.push(critical(`⚠ Limit reached${resetTime ? ` (resets ${resetTime})` : ''}`, colors));
+      const resetTime =
+        ctx.usageData.fiveHour === 100
+          ? formatResetTime(ctx.usageData.fiveHourResetAt)
+          : formatResetTime(ctx.usageData.sevenDayResetAt);
+      parts.push(
+        critical(
+          `⚠ ${t("status.limitReached")}${resetTime ? ` (${t("format.resets")} ${resetTime})` : ""}`,
+          colors,
+        ),
+      );
     } else {
       const usageThreshold = display?.usageThreshold ?? 0;
       const fiveHour = ctx.usageData.fiveHour;
@@ -158,7 +195,7 @@ export function renderSessionLine(ctx: RenderContext): string {
         const usageBarEnabled = display?.usageBarEnabled ?? true;
         if (fiveHour === null && sevenDay !== null) {
           const weeklyOnlyPart = formatUsageWindowPart({
-            label: '7d',
+            label: "7d",
             percent: sevenDay,
             resetAt: ctx.usageData.sevenDayResetAt,
             colors,
@@ -169,7 +206,7 @@ export function renderSessionLine(ctx: RenderContext): string {
           parts.push(weeklyOnlyPart);
         } else {
           const fiveHourPart = formatUsageWindowPart({
-            label: '5h',
+            label: "5h",
             percent: fiveHour,
             resetAt: ctx.usageData.fiveHourResetAt,
             colors,
@@ -180,7 +217,7 @@ export function renderSessionLine(ctx: RenderContext): string {
           const sevenDayThreshold = display?.sevenDayThreshold ?? 80;
           if (sevenDay !== null && sevenDay >= sevenDayThreshold) {
             const sevenDayPart = formatUsageWindowPart({
-              label: '7d',
+              label: "7d",
               percent: sevenDay,
               resetAt: ctx.usageData.sevenDayResetAt,
               colors,
@@ -200,7 +237,12 @@ export function renderSessionLine(ctx: RenderContext): string {
   if (display?.showSpeed) {
     const speed = getOutputSpeed(ctx.stdin);
     if (speed !== null) {
-      parts.push(label(`out: ${speed.toFixed(1)} tok/s`, colors));
+      parts.push(
+        label(
+          `${t("format.out")}: ${speed.toFixed(1)} ${t("format.tokPerSec")}`,
+          colors,
+        ),
+      );
     }
   }
 
@@ -218,15 +260,21 @@ export function renderSessionLine(ctx: RenderContext): string {
     parts.push(customColor(customLine, colors));
   }
 
-  let line = parts.join(' | ');
+  let line = parts.join(" | ");
 
   // Token breakdown at high context
   if (display?.showTokenBreakdown !== false && percent >= 85) {
     const usage = ctx.stdin.context_window?.current_usage;
     if (usage) {
       const input = formatTokens(usage.input_tokens ?? 0);
-      const cache = formatTokens((usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0));
-      line += label(` (in: ${input}, cache: ${cache})`, colors);
+      const cache = formatTokens(
+        (usage.cache_creation_input_tokens ?? 0) +
+          (usage.cache_read_input_tokens ?? 0),
+      );
+      line += label(
+        ` (${t("format.in")}: ${input}, ${t("format.cache")}: ${cache})`,
+        colors,
+      );
     }
   }
 
@@ -243,34 +291,41 @@ function formatTokens(n: number): string {
   return n.toString();
 }
 
-function formatContextValue(ctx: RenderContext, percent: number, mode: 'percent' | 'tokens' | 'remaining' | 'both'): string {
+function formatContextValue(
+  ctx: RenderContext,
+  percent: number,
+  mode: "percent" | "tokens" | "remaining" | "both",
+): string {
   const totalTokens = getTotalTokens(ctx.stdin);
   const size = ctx.stdin.context_window?.context_window_size ?? 0;
 
-  if (mode === 'tokens') {
+  if (mode === "tokens") {
     if (size > 0) {
       return `${formatTokens(totalTokens)}/${formatTokens(size)}`;
     }
     return formatTokens(totalTokens);
   }
 
-  if (mode === 'both') {
+  if (mode === "both") {
     if (size > 0) {
       return `${percent}% (${formatTokens(totalTokens)}/${formatTokens(size)})`;
     }
     return `${percent}%`;
   }
 
-  if (mode === 'remaining') {
+  if (mode === "remaining") {
     return `${Math.max(0, 100 - percent)}%`;
   }
 
   return `${percent}%`;
 }
 
-function formatUsagePercent(percent: number | null, colors?: RenderContext['config']['colors']): string {
+function formatUsagePercent(
+  percent: number | null,
+  colors?: RenderContext["config"]["colors"],
+): string {
   if (percent === null) {
-    return label('--', colors);
+    return label("--", colors);
   }
   const color = getQuotaColor(percent, colors);
   return `${color}${percent}%${RESET}`;
@@ -285,10 +340,10 @@ function formatUsageWindowPart({
   barWidth,
   forceLabel = false,
 }: {
-  label: '5h' | '7d';
+  label: "5h" | "7d";
   percent: number | null;
   resetAt: Date | null;
-  colors?: RenderContext['config']['colors'];
+  colors?: RenderContext["config"]["colors"];
   usageBarEnabled: boolean;
   barWidth: number;
   forceLabel?: boolean;
@@ -309,10 +364,10 @@ function formatUsageWindowPart({
 }
 
 function formatResetTime(resetAt: Date | null): string {
-  if (!resetAt) return '';
+  if (!resetAt) return "";
   const now = new Date();
   const diffMs = resetAt.getTime() - now.getTime();
-  if (diffMs <= 0) return '';
+  if (diffMs <= 0) return "";
 
   const diffMins = Math.ceil(diffMs / 60000);
   if (diffMins < 60) return `${diffMins}m`;
