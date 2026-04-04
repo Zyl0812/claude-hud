@@ -11,6 +11,7 @@ import {
   renderEnvironmentLine,
   renderUsageLine,
   renderMemoryLine,
+  renderSessionTokensLine,
 } from './lines/index.js';
 import { dim, RESET } from './colors.js';
 import { UNKNOWN_TERMINAL_WIDTH } from '../utils/terminal.js';
@@ -430,6 +431,14 @@ export function render(ctx: RenderContext): void {
   if (lineLayout === 'expanded') {
     const renderedLines = renderExpanded(ctx);
     lines = renderedLines.map(({ line }) => line);
+
+    // Session token usage (cumulative)
+    if (ctx.config?.display?.showSessionTokens) {
+      const sessionTokensLine = renderSessionTokensLine(ctx);
+      if (sessionTokensLine) {
+        lines.push(sessionTokensLine);
+      }
+    }
 
     if (showSeparators) {
       const firstActivityIndex = renderedLines.findIndex(({ isActivity }) => isActivity);

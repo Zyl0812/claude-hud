@@ -355,16 +355,100 @@ test('parseTranscript aggregates tools, agents, and todos', async () => {
   assert.equal(result.sessionStart?.toISOString(), '2024-01-01T00:00:00.000Z');
 });
 
+test('parseTranscript accumulates session token usage from assistant messages', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'claude-hud-'));
+  const filePath = path.join(dir, 'session-tokens.jsonl');
+  const lines = [
+    JSON.stringify({
+      type: 'assistant',
+      message: {
+        usage: {
+          input_tokens: 1200,
+          output_tokens: 300,
+          cache_creation_input_tokens: 9000,
+          cache_read_input_tokens: 1500,
+        },
+      },
+    }),
+    JSON.stringify({
+      type: 'assistant',
+      message: {
+        usage: {
+          input_tokens: 800,
+          output_tokens: 200,
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 500,
+        },
+      },
+    }),
+  ];
+
+  await writeFile(filePath, lines.join('\n'), 'utf8');
+
+  try {
+    const result = await parseTranscript(filePath);
+    assert.deepEqual(result.sessionTokens, {
+      inputTokens: 2000,
+      outputTokens: 500,
+      cacheCreationTokens: 9000,
+      cacheReadTokens: 2000,
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('parseTranscript ignores malformed session token values', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'claude-hud-'));
+  const filePath = path.join(dir, 'session-tokens-malformed.jsonl');
+  const lines = [
+    JSON.stringify({
+      type: 'assistant',
+      message: {
+        usage: {
+          input_tokens: '1200',
+          output_tokens: -50,
+          cache_creation_input_tokens: 12.9,
+          cache_read_input_tokens: null,
+        },
+      },
+    }),
+    JSON.stringify({
+      type: 'assistant',
+      message: {
+        usage: {
+          input_tokens: 5,
+          output_tokens: 2,
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 1,
+        },
+      },
+    }),
+  ];
+
+  await writeFile(filePath, lines.join('\n'), 'utf8');
+
+  try {
+    const result = await parseTranscript(filePath);
+    assert.deepEqual(result.sessionTokens, {
+      inputTokens: 5,
+      outputTokens: 2,
+      cacheCreationTokens: 12,
+      cacheReadTokens: 1,
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('TaskCreate taskId is preserved across TodoWrite and usable by TaskUpdate', async () => {
   const dir = await mkdtemp(path.join(tmpdir(), 'claude-hud-'));
   const filePath = path.join(dir, 'taskid-preserve.jsonl');
   const lines = [
-    // 1. TaskCreate adds a task with taskId "alpha"
     JSON.stringify({
       timestamp: '2024-01-01T00:00:00.000Z',
       message: { content: [{ type: 'tool_use', id: 'tc-1', name: 'TaskCreate', input: { taskId: 'alpha', subject: 'Build feature' } }] },
     }),
-    // 2. TodoWrite replaces the list but includes the same content
     JSON.stringify({
       timestamp: '2024-01-01T00:00:01.000Z',
       message: { content: [{ type: 'tool_use', id: 'tw-1', name: 'TodoWrite', input: { todos: [
@@ -372,7 +456,6 @@ test('TaskCreate taskId is preserved across TodoWrite and usable by TaskUpdate',
         { content: 'Write tests', status: 'pending' },
       ] } }] },
     }),
-    // 3. TaskUpdate uses taskId "alpha" — should resolve to the preserved mapping
     JSON.stringify({
       timestamp: '2024-01-01T00:00:02.000Z',
       message: { content: [{ type: 'tool_use', id: 'tu-1', name: 'TaskUpdate', input: { taskId: 'alpha', status: 'completed' } }] },
@@ -404,7 +487,6 @@ test('TodoWrite without prior TaskCreate works as before (no regression)', async
         { content: 'Task B', status: 'in_progress' },
       ] } }] },
     }),
-    // Second TodoWrite replaces the list
     JSON.stringify({
       timestamp: '2024-01-01T00:00:01.000Z',
       message: { content: [{ type: 'tool_use', id: 'tw-2', name: 'TodoWrite', input: { todos: [
