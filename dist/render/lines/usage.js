@@ -3,6 +3,7 @@ import { getProviderLabel } from "../../stdin.js";
 import { critical, label, getQuotaColor, quotaBar, RESET } from "../colors.js";
 import { getAdaptiveBarWidth } from "../../utils/terminal.js";
 import { t } from "../../i18n/index.js";
+import { paddedLabel } from "./label-align.js";
 export function renderUsageLine(ctx) {
     const display = ctx.config?.display;
     const colors = ctx.config?.colors;
@@ -15,7 +16,7 @@ export function renderUsageLine(ctx) {
     if (getProviderLabel(ctx.stdin)) {
         return null;
     }
-    const usageLabel = label(t("label.usage"), colors);
+    const usageLabel = paddedLabel("label.usage", colors);
     if (isLimitReached(ctx.usageData)) {
         const resetTime = ctx.usageData.fiveHour === 100
             ? formatResetTime(ctx.usageData.fiveHourResetAt)
@@ -35,6 +36,7 @@ export function renderUsageLine(ctx) {
     if (fiveHour === null && sevenDay !== null) {
         const weeklyOnlyPart = formatUsageWindowPart({
             label: t("label.weekly"),
+            labelKey: "label.weekly",
             percent: sevenDay,
             resetAt: ctx.usageData.sevenDayResetAt,
             colors,
@@ -55,6 +57,7 @@ export function renderUsageLine(ctx) {
     if (sevenDay !== null && sevenDay >= sevenDayThreshold) {
         const sevenDayPart = formatUsageWindowPart({
             label: t("label.weekly"),
+            labelKey: "label.weekly",
             percent: sevenDay,
             resetAt: ctx.usageData.sevenDayResetAt,
             colors,
@@ -73,10 +76,12 @@ function formatUsagePercent(percent, colors) {
     const color = getQuotaColor(percent, colors);
     return `${color}${percent}%${RESET}`;
 }
-function formatUsageWindowPart({ label: windowLabel, percent, resetAt, colors, usageBarEnabled, barWidth, forceLabel = false, }) {
+function formatUsageWindowPart({ label: windowLabel, labelKey, percent, resetAt, colors, usageBarEnabled, barWidth, forceLabel = false, }) {
     const usageDisplay = formatUsagePercent(percent, colors);
     const reset = formatResetTime(resetAt);
-    const styledLabel = label(windowLabel, colors);
+    const styledLabel = labelKey
+        ? paddedLabel(labelKey, colors)
+        : label(windowLabel, colors);
     if (usageBarEnabled) {
         const body = reset
             ? `${quotaBar(percent ?? 0, barWidth, colors)} ${usageDisplay} (${t("format.resetsIn")} ${reset})`
