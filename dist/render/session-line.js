@@ -64,7 +64,8 @@ export function renderSessionLine(ctx) {
         resetsKey,
         barWidth,
     }));
-    // Project path + git status (SECOND)
+    const projectLineParts = [];
+    // Project path + git status (SECOND LINE)
     let projectPart = null;
     if (display?.showProject !== false && ctx.stdin.cwd) {
         // Split by both Unix (/) and Windows (\) separators for cross-platform support
@@ -114,18 +115,18 @@ export function renderSessionLine(ctx) {
     }
     if (projectPart && gitPart) {
         if (branchOverflow === 'wrap') {
-            parts.push(projectPart);
-            parts.push(gitPart);
+            projectLineParts.push(projectPart);
+            projectLineParts.push(gitPart);
         }
         else {
-            parts.push(`${projectPart} ${gitPart}`);
+            projectLineParts.push(`${projectPart} ${gitPart}`);
         }
     }
     else if (projectPart) {
-        parts.push(projectPart);
+        projectLineParts.push(projectPart);
     }
     else if (gitPart) {
-        parts.push(gitPart);
+        projectLineParts.push(gitPart);
     }
     // Session name (custom title from /rename, or auto-generated slug)
     if (display?.showSessionName && ctx.transcript.sessionName) {
@@ -196,7 +197,9 @@ export function renderSessionLine(ctx) {
             line += label(` (${t('format.in')}: ${input}, ${t('format.cache')}: ${cache})`, colors);
         }
     }
-    return line;
+    return projectLineParts.length > 0
+        ? `${line}\n${projectLineParts.join(' | ')}`
+        : line;
 }
 function renderSessionUsageParts(ctx, { colors, display, timeFormat, resetsKey, barWidth, }) {
     const parts = [];

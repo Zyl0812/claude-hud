@@ -212,6 +212,9 @@ test('compact render keeps context and usage on the first wrapped line', () => {
   assert.ok(lines.length > 1, 'long project/git details should wrap after priority metrics');
   assert.ok(lines[0].includes('[Opus]'), `first line should keep the context segment: ${lines.join(' | ')}`);
   assert.ok(lines[0].includes('Usage'), `first line should keep the usage segment: ${lines.join(' | ')}`);
+  assert.ok(!lines[0].includes('very-long-project-name'), `project should move off the first line: ${lines.join(' | ')}`);
+  assert.ok(lines[1].includes('very-long-project-name'), `second line should contain the project segment: ${lines.join(' | ')}`);
+  assert.ok(lines[1].includes('git:('), `second line should contain the git segment: ${lines.join(' | ')}`);
   assert.ok(lines.every(line => displayWidth(line) <= 70), 'all lines should fit terminal width');
 });
 
@@ -271,6 +274,7 @@ test('render ignores OSC 8 hyperlink sequences when measuring line width', () =>
   ctx.config.display.showContextBar = false;
   ctx.config.display.showConfigCounts = false;
   ctx.config.display.showUsage = false;
+  ctx.config.display.showProject = false;
   ctx.stdin.cwd = '/tmp/my-project';
   ctx.sessionDuration = '1m';
   ctx.extraLabel = '\x1b]8;;file:///tmp/my-project\x1b\\linked-label\x1b]8;;\x1b\\';
@@ -293,6 +297,7 @@ test('render ignores BEL-terminated OSC 8 hyperlink sequences when measuring lin
   ctx.config.display.showContextBar = false;
   ctx.config.display.showConfigCounts = false;
   ctx.config.display.showUsage = false;
+  ctx.config.display.showProject = false;
   ctx.stdin.cwd = '/tmp/my-project';
   ctx.sessionDuration = '1m';
   ctx.extraLabel = '\x1b]8;;file:///tmp/my-project\x07linked-label\x1b]8;;\x07';
@@ -390,6 +395,7 @@ test('render ignores config.maxWidth when terminal width is detected', () => {
   ctx.stdin.model = { display_name: 'Sonnet 4.6' };
   ctx.stdin.cwd = '/tmp/project';
   ctx.config.maxWidth = 30;
+  ctx.extraLabel = '12345678901234567890123456789012345';
 
   // When terminal reports a real width, maxWidth should NOT cap it
   let lines = [];
