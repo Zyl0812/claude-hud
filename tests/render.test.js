@@ -1366,7 +1366,7 @@ test('renderSessionLine omits usage window suffix in bar-mode reset countdown', 
   };
 
   const line = stripAnsi(renderSessionLine(ctx));
-  assert.ok(line.includes('(resets in 2h)'), `should include reset countdown: ${line}`);
+  assert.ok(line.includes('(2h)'), `should include reset countdown: ${line}`);
   assert.ok(!line.includes('/ 5h'), `should not include usage window suffix: ${line}`);
 });
 

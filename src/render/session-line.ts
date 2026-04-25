@@ -437,7 +437,7 @@ function formatUsageWindowPart({
 
   if (usageBarEnabled) {
     const barReset = reset
-      ? (showResetLabel ? `${t(resetsKey)} ${reset}` : reset)
+      ? (timeFormat === 'relative' ? reset : (showResetLabel ? `${t(resetsKey)} ${reset}` : reset))
       : null;
     const body = barReset
       ? `${quotaBar(percent ?? 0, barWidth, colors)} ${usageDisplay} (${barReset})`
