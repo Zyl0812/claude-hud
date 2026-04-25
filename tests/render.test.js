@@ -1354,6 +1354,22 @@ test('renderSessionLine shows 5hr reset countdown', () => {
   assert.ok(line.includes('2h'), 'should include reset countdown');
 });
 
+test('renderSessionLine omits usage window suffix in bar-mode reset countdown', () => {
+  const ctx = baseContext();
+  ctx.config.display.usageBarEnabled = true;
+  ctx.usageData = {
+    planName: 'Pro',
+    fiveHour: 45,
+    sevenDay: 20,
+    fiveHourResetAt: new Date(Date.now() + 7200000),
+    sevenDayResetAt: null,
+  };
+
+  const line = stripAnsi(renderSessionLine(ctx));
+  assert.ok(line.includes('(resets in 2h)'), `should include reset countdown: ${line}`);
+  assert.ok(!line.includes('/ 5h'), `should not include usage window suffix: ${line}`);
+});
+
 test('renderUsageLine shows reset countdown in days when >= 24 hours', () => {
   const ctx = baseContext();
   const resetTime = new Date(Date.now() + (151 * 3600000) + (59 * 60000)); // 6d 7h 59m from now
