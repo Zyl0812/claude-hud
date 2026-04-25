@@ -187,6 +187,34 @@ test('render can wrap git to its own line without truncating the branch name', (
   assert.ok(lines.some(line => line.includes('git:(feature/this-is-a-very-long-branch-name*)')), 'git branch should remain intact on its own line');
 });
 
+test('compact render keeps context and usage on the first wrapped line', () => {
+  const ctx = baseContext();
+  ctx.stdin.cwd = '/tmp/very-long-project-name-that-should-wrap-after-usage';
+  ctx.gitStatus = {
+    branch: 'feature/long-branch-that-should-not-displace-usage',
+    isDirty: true,
+    ahead: 0,
+    behind: 0,
+  };
+  ctx.config.display.usageBarEnabled = true;
+  ctx.usageData = {
+    fiveHour: 42,
+    sevenDay: null,
+    fiveHourResetAt: null,
+    sevenDayResetAt: null,
+  };
+
+  let lines = [];
+  withTerminal(70, () => {
+    lines = captureRender(ctx);
+  });
+
+  assert.ok(lines.length > 1, 'long project/git details should wrap after priority metrics');
+  assert.ok(lines[0].includes('[Opus]'), `first line should keep the context segment: ${lines.join(' | ')}`);
+  assert.ok(lines[0].includes('Usage'), `first line should keep the usage segment: ${lines.join(' | ')}`);
+  assert.ok(lines.every(line => displayWidth(line) <= 70), 'all lines should fit terminal width');
+});
+
 test('render falls back to COLUMNS env when stdout.columns is unavailable', () => {
   const ctx = baseContext();
   ctx.stdin.cwd = '/tmp/project';

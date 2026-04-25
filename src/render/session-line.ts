@@ -64,6 +64,14 @@ export function renderSessionLine(ctx: RenderContext): string {
     parts.push(contextValueDisplay);
   }
 
+  parts.push(...renderSessionUsageParts(ctx, {
+    colors,
+    display,
+    timeFormat,
+    resetsKey,
+    barWidth,
+  }));
+
   // Project path + git status (SECOND)
   let projectPart: string | null = null;
   if (display?.showProject !== false && ctx.stdin.cwd) {
@@ -161,98 +169,6 @@ export function renderSessionLine(ctx: RenderContext): string {
     }
   }
 
-  // Usage limits display (shown when enabled in config, respects usageThreshold)
-  if (display?.showUsage !== false && ctx.usageData && !shouldHideUsage(ctx.stdin)) {
-    const usageCompact = display?.usageCompact ?? false;
-    const showResetLabel = display?.showResetLabel ?? true;
-
-    if (isLimitReached(ctx.usageData)) {
-      const resetTime = ctx.usageData.fiveHour === 100
-        ? formatResetTime(ctx.usageData.fiveHourResetAt, timeFormat)
-        : formatResetTime(ctx.usageData.sevenDayResetAt, timeFormat);
-      if (usageCompact) {
-        parts.push(critical(`⚠ Limit${resetTime ? ` (${resetTime})` : ''}`, colors));
-      } else {
-        const resetSuffix = resetTime
-          ? showResetLabel
-            ? ` (${t(resetsKey)} ${resetTime})`
-            : ` (${resetTime})`
-          : '';
-        parts.push(critical(`⚠ ${t('status.limitReached')}${resetSuffix}`, colors));
-      }
-    } else {
-      const usageThreshold = display?.usageThreshold ?? 0;
-      const fiveHour = ctx.usageData.fiveHour;
-      const sevenDay = ctx.usageData.sevenDay;
-      const effectiveUsage = Math.max(fiveHour ?? 0, sevenDay ?? 0);
-
-      if (effectiveUsage >= usageThreshold) {
-        const usageBarEnabled = display?.usageBarEnabled ?? true;
-        if (usageCompact) {
-          const fiveHourPart = fiveHour !== null
-            ? formatCompactWindowPart('5h', fiveHour, ctx.usageData.fiveHourResetAt, timeFormat, colors)
-            : null;
-          const sevenDayThreshold = display?.sevenDayThreshold ?? 80;
-          const sevenDayPart = (sevenDay !== null && (fiveHour === null || sevenDay >= sevenDayThreshold))
-            ? formatCompactWindowPart('7d', sevenDay, ctx.usageData.sevenDayResetAt, timeFormat, colors)
-            : null;
-
-          if (fiveHourPart && sevenDayPart) {
-            parts.push(fiveHourPart);
-            parts.push(sevenDayPart);
-          } else if (fiveHourPart) {
-            parts.push(fiveHourPart);
-          } else if (sevenDayPart) {
-            parts.push(sevenDayPart);
-          }
-        } else if (fiveHour === null && sevenDay !== null) {
-          const weeklyOnlyPart = formatUsageWindowPart({
-            label: t('label.weekly'),
-            percent: sevenDay,
-            resetAt: ctx.usageData.sevenDayResetAt,
-            colors,
-            usageBarEnabled,
-            barWidth,
-            timeFormat,
-            showResetLabel,
-            forceLabel: true,
-          });
-          parts.push(weeklyOnlyPart);
-        } else {
-          const fiveHourPart = formatUsageWindowPart({
-            label: '5h',
-            percent: fiveHour,
-            resetAt: ctx.usageData.fiveHourResetAt,
-            colors,
-            usageBarEnabled,
-            barWidth,
-            timeFormat,
-            showResetLabel,
-          });
-
-          const sevenDayThreshold = display?.sevenDayThreshold ?? 80;
-          if (sevenDay !== null && sevenDay >= sevenDayThreshold) {
-            const sevenDayPart = formatUsageWindowPart({
-              label: t('label.weekly'),
-              percent: sevenDay,
-              resetAt: ctx.usageData.sevenDayResetAt,
-              colors,
-              usageBarEnabled,
-              barWidth,
-              timeFormat,
-              showResetLabel,
-              forceLabel: true,
-            });
-            parts.push(`${label(t('label.usage'), colors)} ${fiveHourPart}`);
-            parts.push(sevenDayPart);
-          } else {
-            parts.push(`${label(t('label.usage'), colors)} ${fiveHourPart}`);
-          }
-        }
-      }
-    }
-  }
-
   // Session token usage (cumulative)
   if (display?.showSessionTokens && ctx.transcript.sessionTokens) {
     const st = ctx.transcript.sessionTokens;
@@ -306,6 +222,128 @@ export function renderSessionLine(ctx: RenderContext): string {
   }
 
   return line;
+}
+
+function renderSessionUsageParts(
+  ctx: RenderContext,
+  {
+    colors,
+    display,
+    timeFormat,
+    resetsKey,
+    barWidth,
+  }: {
+    colors: RenderContext['config']['colors'];
+    display: RenderContext['config']['display'];
+    timeFormat: TimeFormatMode;
+    resetsKey: Parameters<typeof t>[0];
+    barWidth: number;
+  },
+): string[] {
+  const parts: string[] = [];
+
+  // Keep usage next to the context bar so compact wrapping leaves both on row one.
+  if (display?.showUsage === false || !ctx.usageData || shouldHideUsage(ctx.stdin)) {
+    return parts;
+  }
+
+  const usageCompact = display?.usageCompact ?? false;
+  const showResetLabel = display?.showResetLabel ?? true;
+
+  if (isLimitReached(ctx.usageData)) {
+    const resetTime = ctx.usageData.fiveHour === 100
+      ? formatResetTime(ctx.usageData.fiveHourResetAt, timeFormat)
+      : formatResetTime(ctx.usageData.sevenDayResetAt, timeFormat);
+    if (usageCompact) {
+      parts.push(critical(`⚠ Limit${resetTime ? ` (${resetTime})` : ''}`, colors));
+    } else {
+      const resetSuffix = resetTime
+        ? showResetLabel
+          ? ` (${t(resetsKey)} ${resetTime})`
+          : ` (${resetTime})`
+        : '';
+      parts.push(critical(`⚠ ${t('status.limitReached')}${resetSuffix}`, colors));
+    }
+    return parts;
+  }
+
+  const usageThreshold = display?.usageThreshold ?? 0;
+  const fiveHour = ctx.usageData.fiveHour;
+  const sevenDay = ctx.usageData.sevenDay;
+  const effectiveUsage = Math.max(fiveHour ?? 0, sevenDay ?? 0);
+
+  if (effectiveUsage < usageThreshold) {
+    return parts;
+  }
+
+  const usageBarEnabled = display?.usageBarEnabled ?? true;
+  if (usageCompact) {
+    const fiveHourPart = fiveHour !== null
+      ? formatCompactWindowPart('5h', fiveHour, ctx.usageData.fiveHourResetAt, timeFormat, colors)
+      : null;
+    const sevenDayThreshold = display?.sevenDayThreshold ?? 80;
+    const sevenDayPart = (sevenDay !== null && (fiveHour === null || sevenDay >= sevenDayThreshold))
+      ? formatCompactWindowPart('7d', sevenDay, ctx.usageData.sevenDayResetAt, timeFormat, colors)
+      : null;
+
+    if (fiveHourPart && sevenDayPart) {
+      parts.push(fiveHourPart);
+      parts.push(sevenDayPart);
+    } else if (fiveHourPart) {
+      parts.push(fiveHourPart);
+    } else if (sevenDayPart) {
+      parts.push(sevenDayPart);
+    }
+    return parts;
+  }
+
+  if (fiveHour === null && sevenDay !== null) {
+    const weeklyOnlyPart = formatUsageWindowPart({
+      label: t('label.weekly'),
+      percent: sevenDay,
+      resetAt: ctx.usageData.sevenDayResetAt,
+      colors,
+      usageBarEnabled,
+      barWidth,
+      timeFormat,
+      showResetLabel,
+      forceLabel: true,
+    });
+    parts.push(weeklyOnlyPart);
+    return parts;
+  }
+
+  const fiveHourPart = formatUsageWindowPart({
+    label: '5h',
+    percent: fiveHour,
+    resetAt: ctx.usageData.fiveHourResetAt,
+    colors,
+    usageBarEnabled,
+    barWidth,
+    timeFormat,
+    showResetLabel,
+  });
+
+  const sevenDayThreshold = display?.sevenDayThreshold ?? 80;
+  if (sevenDay !== null && sevenDay >= sevenDayThreshold) {
+    const sevenDayPart = formatUsageWindowPart({
+      label: t('label.weekly'),
+      percent: sevenDay,
+      resetAt: ctx.usageData.sevenDayResetAt,
+      colors,
+      usageBarEnabled,
+      barWidth,
+      timeFormat,
+      showResetLabel,
+      forceLabel: true,
+    });
+    parts.push(`${label(t('label.usage'), colors)} ${fiveHourPart}`);
+    parts.push(sevenDayPart);
+  } else {
+    parts.push(`${label(t('label.usage'), colors)} ${fiveHourPart}`);
+  }
+
+  return parts;
 }
 
 function formatTokens(n: number): string {
